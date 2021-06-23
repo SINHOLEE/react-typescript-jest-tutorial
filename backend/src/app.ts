@@ -106,22 +106,40 @@ type FailProps = {
 	message: string;
 };
 type ServiceProps<T> = SuccessProps<T> | FailProps;
+
+const UserRepository = {
+	getById: (id: string): UserType => {
+		const user = users.find((user) => user.id === id);
+		if (user) {
+			return user;
+		}
+		throw new Error(`user DB has no element by userId ${id}`);
+	},
+	getByUsernameAndPassword: (username: string, password: string): UserType => {
+		const user = users.find((user) => user.password === password && user.username === username);
+		if (user) {
+			return user;
+		}
+		throw new Error(`해당 계정이 없습니다.`);
+	},
+};
 const UserService = {
+	getUser: (user: UserType) => {},
 	login: ({
 		username,
 		password,
 	}: {
 		username: string;
 		password: string;
-	}): ServiceProps<{auth_key: string} & {username: string; password: string}> => {
-		const user = users.find((user) => user.username === username && user.password === password);
+	}): ServiceProps<{auth_key: string} & {user: UserType}> => {
+		const user = UserRepository.getByUsernameAndPassword(username, password);
 		if (user) {
 			const uuid = gen_uuid();
 			tokenService.add(uuid);
 			return {
 				res: "ok",
 				data: {
-					...user,
+					user,
 					auth_key: uuid,
 				},
 			};
@@ -133,11 +151,15 @@ const UserService = {
 		}
 	},
 };
+
 app.post("/login", (req: express.Request, res: express.Response) => {
 	const login = UserService.login({...req.body});
 	if (login.res === "ok") {
 		res.json({auth_key: login.data.auth_key});
 	}
+});
+app.get("/tokens", (req: express.Request, res: express.Response) => {
+	res.json(tokens);
 });
 
 // app.get("/", (req, res) => {
