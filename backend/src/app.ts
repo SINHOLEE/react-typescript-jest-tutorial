@@ -1,6 +1,6 @@
 import express from "express";
 import bodyParser from "body-parser";
-
+import cors from "cors";
 /**
  * 첫번째 고난: post로 넘긴 body값이 undefined인 문제
  * body-parser 라이브러리를 통해 해결할 수 있었다.
@@ -11,6 +11,8 @@ import bodyParser from "body-parser";
 const app: express.Application = express();
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
+
+app.use(cors({method: ["GET", "POST"], credentials: true}));
 
 app.get("/", (req: express.Request, res: express.Response, next: express.NextFunction) => {
 	res.send("hello asdeaasds sess!");
@@ -54,11 +56,21 @@ const users: UserType[] = [
 		password: "TLSgh!@3",
 		project_ids: ["project_1"],
 	},
+	{
+		id: "user_4",
+		username: "1",
+		password: "1",
+		project_ids: ["project_1"],
+	},
 ];
 type TokenType = {
 	id: string;
+	/**
+	 * auth_key ===token_id
+	 */
 	token_id: string;
 	is_deleted: boolean;
+	userId: string;
 };
 
 const tokens: TokenType[] = [];
@@ -68,10 +80,10 @@ type ProjectType = {
 	related_users: string[];
 };
 
-const projects: ProjectType[] = [{id: "project_1", related_users: ["user_1", "user_3"]}];
+const projects: ProjectType[] = [{id: "project_1", related_users: ["user_1", "user_3", "user_4"]}];
 
-const is_loged_in = (token: string): boolean => {
-	return !!tokens.find((t) => t.token_id === token);
+const is_loged_in = (tokenId: string): boolean => {
+	return !!tokens.find((t) => t.token_id === tokenId);
 };
 // var myLogger = function (req, res, next) {
 // 	// console.log({req});
@@ -87,9 +99,14 @@ const is_loged_in = (token: string): boolean => {
  * 나중에 content-type에 따른 parser전략이 어떻게 바뀌는지 파악해야 겠음
  */
 
-const tokenService = {
-	add: (token: string) => {
-		tokens.push({id: gen_uuid(), is_deleted: false, token_id: token});
+const tokenRepository = {
+	getByTokenId: (tokenId: string) => {
+		return tokens.find((token) => token.token_id === tokenId);
+	},
+	addUser: (user: UserType): TokenType => {
+		const newToken = {id: gen_uuid(), is_deleted: false, token_id: gen_uuid(), userId: user.id};
+		tokens.push(newToken);
+		return newToken;
 	},
 	has: (token: string): boolean => {
 		return !!tokens.find((t) => token === t.token_id);
@@ -123,8 +140,16 @@ const UserRepository = {
 		throw new Error(`해당 계정이 없습니다.`);
 	},
 };
+const getProjects = (userId: string): ProjectType[] => {
+	const plist = projects.filter((p) => p.related_users.some((uid) => uid === userId));
+	console.log({plist});
+	return plist;
+};
 const UserService = {
-	getUser: (user: UserType) => {},
+	getByTokenId: (tokenId: string) => {
+		const token = tokenRepository.getByTokenId(tokenId);
+		return UserRepository.getById(token.userId);
+	},
 	login: ({
 		username,
 		password,
@@ -132,18 +157,18 @@ const UserService = {
 		username: string;
 		password: string;
 	}): ServiceProps<{auth_key: string} & {user: UserType}> => {
-		const user = UserRepository.getByUsernameAndPassword(username, password);
-		if (user) {
-			const uuid = gen_uuid();
-			tokenService.add(uuid);
+		try {
+			const user = UserRepository.getByUsernameAndPassword(username, password);
+			const token = tokenRepository.addUser(user);
 			return {
 				res: "ok",
 				data: {
 					user,
-					auth_key: uuid,
+					auth_key: token.token_id,
 				},
 			};
-		} else {
+		} catch (e) {
+			console.dir(e.message);
 			return {
 				res: "fail",
 				message: "계정 혹은 비밀번호가 잘못되었습니다.",
@@ -151,13 +176,25 @@ const UserService = {
 		}
 	},
 };
-
-app.post("/login", (req: express.Request, res: express.Response) => {
+app.post("/login", cors(corsCheck), (req: express.Request, res: express.Response) => {
 	const login = UserService.login({...req.body});
 	if (login.res === "ok") {
 		res.json({auth_key: login.data.auth_key});
+		return;
+	}
+	res.status(401).send();
+});
+app.get("/projects", cors(corsCheck), (req: express.Request, res: express.Response) => {
+	const tokenId = req.headers["authorization"];
+	const is_logedIn = is_loged_in(tokenId);
+	if (is_logedIn) {
+		const userId = UserService.getByTokenId(tokenId).id;
+		const pList = getProjects(userId);
+		console.log(pList);
+		res.json(pList);
 	}
 });
+
 app.get("/tokens", (req: express.Request, res: express.Response) => {
 	res.json(tokens);
 });
@@ -169,3 +206,18 @@ app.get("/tokens", (req: express.Request, res: express.Response) => {
 // app.listen(port, () => {
 // 	console.log(`Example app listening at http://localhost:${port}`);
 // });
+
+function corsCheck(req, callback) {
+	let corsOptions;
+	const acceptList = [
+		// ... url list
+		"http://localhost:3002",
+		"http://10.10.10.56:3002",
+	];
+	if (acceptList.includes(req.header("Origin"))) {
+		corsOptions = {origin: true, credential: true};
+	} else {
+		corsOptions = {origin: false};
+	}
+	callback(null, corsOptions);
+}
