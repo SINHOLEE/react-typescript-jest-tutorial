@@ -14,7 +14,9 @@
 	"dependencies": {
 		"body-parser": "^1.19.0",
 		"cors": "^2.8.5",
-		"supervisor": "^0.12.0"
+		"reflect-metadata": "^0.1.13",
+		"supervisor": "^0.12.0",
+		"typedi": "^0.10.0"
 	},
 	"scripts": {
 		"start": "nodemon --watch src --delay 1 --exec ts-node src/www.ts"
