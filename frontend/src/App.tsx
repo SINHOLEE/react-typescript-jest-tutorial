@@ -1,12 +1,21 @@
 import React, {MouseEvent, useEffect, useRef, useState} from "react";
+import socketIOClient, {Socket} from "socket.io-client";
+import TodoTemplate from "./Todos";
 import "./App.css";
 type ProjectType = {
 	id: string;
 	related_users: string[];
 };
 
-function ProjectList({token}: {token: string}) {
+function ProjectList({
+	token,
+	setSelectedPjt,
+}: {
+	token: string;
+	setSelectedPjt: (pjtId: string) => void;
+}) {
 	const [projects, setProjects] = useState<ProjectType[]>([]);
+
 	useEffect(() => {
 		const asyncFetch = async () => {
 			const res = await fetch("http://10.10.10.56:5555/projects", {
@@ -15,9 +24,9 @@ function ProjectList({token}: {token: string}) {
 					authorization: token,
 				},
 			});
-			console.log(res);
 			if (res.ok) {
 				const data = await res.json();
+				console.log(data);
 				setProjects(data);
 			}
 		};
@@ -30,7 +39,10 @@ function ProjectList({token}: {token: string}) {
 			{projects &&
 				projects.map((project, idx) => (
 					<li key={project.id}>
-						<div className="pjt">{`project_id: ${project.id}`}</div>
+						<div className="pjt">
+							<span>{`project_id: ${project.id}`}</span>
+							<button onClick={() => setSelectedPjt(project.id)}>선택</button>
+						</div>
 						{project.related_users.map((user) => (
 							<p key={user}>{user}</p>
 						))}
@@ -39,8 +51,8 @@ function ProjectList({token}: {token: string}) {
 		</ul>
 	);
 }
-
-function App() {
+function LoginPage({socket}: {socket: Socket}) {
+	const [selectedPjt, setSelectedPjt] = useState("");
 	const [isLogedIn, setIsLogedIn] = useState(false);
 	const [token, setToken] = useState<string | undefined>();
 	const idRef = useRef<HTMLInputElement | null>(null);
@@ -63,6 +75,7 @@ function App() {
 			setToken(data.auth_key);
 			alert("로그인됨");
 			setIsLogedIn((flag) => !flag);
+			socket.emit("send message", {message: "로그인 ok", tokenId: data.auth_key});
 		} else {
 			alert(res.statusText);
 		}
@@ -86,14 +99,25 @@ function App() {
 					onClick={() => {
 						setIsLogedIn(false);
 						setToken(undefined);
+						setSelectedPjt("");
 					}}
 				>
 					로그아웃
 				</button>
 			)}
-			{token && <ProjectList token={token}></ProjectList>}
+			{token && <ProjectList token={token} setSelectedPjt={setSelectedPjt}></ProjectList>}
+			<div>{`slected project: ${
+				selectedPjt === "" ? "선택된 프로젝트 없음" : selectedPjt
+			}`}</div>
+			{token && selectedPjt && (
+				<TodoTemplate token={token} selectedPjt={selectedPjt}></TodoTemplate>
+			)}
 		</>
 	);
+}
+function App() {
+	const socket = socketIOClient("localhost:5555");
+	return <LoginPage socket={socket}></LoginPage>;
 }
 
 export default App;
