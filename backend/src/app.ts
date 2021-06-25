@@ -1,11 +1,8 @@
 import {NextFunction, Request, Response} from "express";
-import app, {corsCheck} from "./middlewares";
+import app, {corsCheck, loginMiddleware} from "./middlewares";
 import cors from "cors";
 import models from "./models";
-// const express = require("express");
-// const app = express();
-// const port = 5000;
-const {UserService, ProjectService, TokenService} = models;
+const {UserService, ProjectService, TokenService, TodoService} = models;
 
 app.get("/", (req: Request, res: Response, next: NextFunction) => {
 	res.send("hello asdeaasds sess!");
@@ -19,15 +16,28 @@ app.post("/login", cors(corsCheck), (req: Request, res: Response) => {
 	}
 	res.status(401).send();
 });
-app.get("/projects", cors(corsCheck), (req: Request, res: Response) => {
-	const tokenId = req.headers["authorization"];
-	const is_logedIn = TokenService.is_loged_in(tokenId);
-	if (is_logedIn) {
-		const user = UserService.getItemByTokenId(tokenId);
-		const pList = ProjectService.getListByUser(user);
-		console.log(pList);
-		res.json(pList);
+app.post("/todos", cors(corsCheck), loginMiddleware, (req: Request, res: Response) => {
+	const {content} = req.body;
+	const project_id = req.headers["project_id"] as string;
+	const todo = TodoService.add(content, project_id);
+	if (todo) {
+		res.json(todo);
+	} else {
+		res.status(400).send();
 	}
+});
+
+app.get("/todos", cors(corsCheck), loginMiddleware, (req: Request, res: Response) => {
+	const project_id = req.headers["project_id"] as string;
+
+	const todos = TodoService.getList(project_id);
+	res.json(todos);
+});
+app.get("/projects", cors(corsCheck), loginMiddleware, (req: Request, res: Response) => {
+	const tokenId = req.headers["authorization"];
+	const user = UserService.getItemByTokenId(tokenId);
+	const pList = ProjectService.getListByUser(user);
+	res.json(pList);
 });
 
 app.get("/tokens", (req: Request, res: Response) => {

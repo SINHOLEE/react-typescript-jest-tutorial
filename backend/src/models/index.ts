@@ -1,3 +1,5 @@
+import {text} from "body-parser";
+
 const gen_uuid = (): string => {
 	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
 		var r = (Math.random() * 16) | 0,
@@ -11,18 +13,28 @@ type UserType = {
 	password: string;
 	project_ids: string[];
 };
+
+type TodoType = {
+	id: string;
+	content: string;
+	createdAt: string;
+	updatedAt: string;
+	done: boolean;
+	projectId: string;
+};
+
 const users: UserType[] = [
 	{
 		id: "user_1",
 		username: "dltlsgh5@naver.com",
 		password: "TLSgh!@3",
-		project_ids: ["project_1"],
+		project_ids: ["project_1", "project_2"],
 	},
 	{
 		id: "user_2",
-		username: "another@gmail.com",
+		username: "dltlsgh5@gmail.com",
 		password: "TLSgh!@3",
-		project_ids: [],
+		project_ids: ["project_2"],
 	},
 	{
 		id: "user_3",
@@ -54,7 +66,10 @@ type ProjectType = {
 	related_users: string[];
 };
 
-const projects: ProjectType[] = [{id: "project_1", related_users: ["user_1", "user_3", "user_4"]}];
+const projects: ProjectType[] = [
+	{id: "project_1", related_users: ["user_1", "user_3", "user_4"]},
+	{id: "project_2", related_users: ["user_1", "user_2"]},
+];
 
 // var myLogger = function (req, res, next) {
 // 	// console.log({req});
@@ -84,6 +99,29 @@ const tokenRepository = {
 	},
 };
 
+const todos: TodoType[] = [];
+
+const TodoService = {
+	add: (text: string, projectId: string) => {
+		const newTodo: TodoType = {
+			id: gen_uuid(),
+			content: text,
+			createdAt: Date.now().toString(),
+			done: false,
+			projectId: projectId,
+			updatedAt: Date.now().toString(),
+		};
+		todos.push(newTodo);
+		return newTodo;
+	},
+	toggle: (id: string) => {
+		todos.filter((todo) => (todo.id === id ? {...todo, done: !todo.done} : todo));
+		return id;
+	},
+	getList: (projectId: string) => {
+		return todos.filter((todo) => todo.projectId === projectId);
+	},
+};
 type SuccessProps<T> = {
 	res: "ok";
 	data: T;
@@ -114,7 +152,6 @@ const UserRepository = {
 const ProjectService = {
 	getListByUser: (user: UserType): ProjectType[] => {
 		const plist = projects.filter((p) => p.related_users.some((uid) => uid === user.id));
-		console.log({plist});
 		return plist;
 	},
 };
@@ -164,4 +201,5 @@ export default {
 	ProjectService,
 	UserService,
 	TokenService,
+	TodoService,
 };
