@@ -1,4 +1,4 @@
-import React, {FormEvent, useEffect, useState} from "react";
+import React, { FormEvent, useEffect, useState } from 'react';
 
 type TodoType = {
 	id: string;
@@ -8,12 +8,22 @@ type TodoType = {
 	done: boolean;
 	projectId: string;
 };
-export default function TodoTemplate({token, selectedPjt}: {token: string; selectedPjt: string}) {
+export default function TodoTemplate({
+	token,
+	selectedPjt,
+}: {
+	token: string;
+	selectedPjt: string;
+}) {
 	const [todos, setTodos] = useState<TodoType[]>([]);
 
 	return (
 		<>
-			<TodoInput token={token} selectedPjt={selectedPjt} setTodos={setTodos}></TodoInput>
+			<TodoInput
+				token={token}
+				selectedPjt={selectedPjt}
+				setTodos={setTodos}
+			></TodoInput>
 			<TodoList
 				selectedPjt={selectedPjt}
 				todos={todos}
@@ -33,14 +43,14 @@ function TodoInput({
 	selectedPjt: string;
 	setTodos: React.Dispatch<React.SetStateAction<TodoType[]>>;
 }) {
-	const [input, setInput] = useState("");
+	const [input, setInput] = useState('');
 	const handleSubmit = async (event: FormEvent) => {
 		event.preventDefault();
 		console.log(input);
-		const res = await fetch("http://10.10.10.56:5555/todos", {
-			method: "POST",
+		const res = await fetch('http://localhost:5555/todos', {
+			method: 'POST',
 			headers: {
-				"Content-type": "application/json",
+				'Content-type': 'application/json',
 				project_id: selectedPjt,
 				authorization: token,
 			},
@@ -50,7 +60,7 @@ function TodoInput({
 		});
 		const todo = await res.json();
 		if (res.ok) {
-			setInput("");
+			setInput('');
 			setTodos((todos) => [...todos, todo]);
 		} else {
 			alert(res.statusText);
@@ -58,12 +68,16 @@ function TodoInput({
 	};
 	return (
 		<div>
-			<input type="text" value={input} onChange={(e) => setInput(e.target.value)} />
+			<input
+				type="text"
+				value={input}
+				onChange={(e) => setInput(e.target.value)}
+			/>
 			<button onClick={handleSubmit}>생성</button>
 		</div>
 	);
 }
-function Todo({todo}: {todo: TodoType}) {
+function Todo({ todo }: { todo: TodoType }) {
 	return (
 		<li>
 			<div className="left">
@@ -71,8 +85,8 @@ function Todo({todo}: {todo: TodoType}) {
 				<div>projectId: {todo.projectId}</div>
 				<div>최신수정날짜: {todo.updatedAt}</div>
 			</div>
-			<div className="right" style={{color: todo.done ? "blue" : "red"}}>
-				{todo.done ? "수행완료" : "미수행"}
+			<div className="right" style={{ color: todo.done ? 'blue' : 'red' }}>
+				{todo.done ? '수행완료' : '미수행'}
 			</div>
 		</li>
 	);
@@ -91,9 +105,9 @@ function TodoList({
 }) {
 	useEffect(() => {
 		const asyncFetch = async () => {
-			const res = await fetch("http://10.10.10.56:5555/todos", {
+			const res = await fetch('http://localhost:5555/todos', {
 				headers: {
-					"Content-type": "application/json",
+					'Content-type': 'application/json',
 					project_id: selectedPjt,
 					authorization: token,
 				},

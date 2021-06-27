@@ -1,7 +1,16 @@
-import React, {MouseEvent, useEffect, useRef, useState} from "react";
-import socketIOClient, {Socket} from "socket.io-client";
-import TodoTemplate from "./Todos";
-import "./App.css";
+import React, {
+	createContext,
+	MouseEvent,
+	useEffect,
+	useRef,
+	useState,
+} from 'react';
+import socketIOClient, { Socket } from 'socket.io-client';
+import TodoTemplate from 'shared/Todos';
+import './App.css';
+import { Route, useHistory } from 'react-router';
+import ColorCompoent from 'shared/ColorComponent';
+
 type ProjectType = {
 	id: string;
 	related_users: string[];
@@ -18,9 +27,9 @@ function ProjectList({
 
 	useEffect(() => {
 		const asyncFetch = async () => {
-			const res = await fetch("http://10.10.10.56:5555/projects", {
+			const res = await fetch('http://localhost:5555/projects', {
 				headers: {
-					"Content-type": "application/json",
+					'Content-type': 'application/json',
 					authorization: token,
 				},
 			});
@@ -51,18 +60,19 @@ function ProjectList({
 		</ul>
 	);
 }
-function LoginPage({socket}: {socket: Socket}) {
-	const [selectedPjt, setSelectedPjt] = useState("");
+function LoginPage({ socket }: { socket: Socket }) {
+	const [selectedPjt, setSelectedPjt] = useState('');
 	const [isLogedIn, setIsLogedIn] = useState(false);
 	const [token, setToken] = useState<string | undefined>();
 	const idRef = useRef<HTMLInputElement | null>(null);
 	const pwRef = useRef<HTMLInputElement | null>(null);
+	const history = useHistory();
 	const handleSubmit = async (event: MouseEvent) => {
 		event.preventDefault();
-		const res = await fetch("http://10.10.10.56:5555/login/", {
-			method: "POST",
+		const res = await fetch('http://localhost:5555/login/', {
+			method: 'POST',
 			headers: {
-				"Content-type": "application/json",
+				'Content-type': 'application/json',
 			},
 			body: JSON.stringify({
 				username: idRef.current?.value,
@@ -73,15 +83,20 @@ function LoginPage({socket}: {socket: Socket}) {
 			console.log(res.body);
 			const data = await res.json();
 			setToken(data.auth_key);
-			alert("로그인됨");
+			alert('로그인됨');
 			setIsLogedIn((flag) => !flag);
-			socket.emit("send message", {message: "로그인 ok", tokenId: data.auth_key});
+			socket.emit('send message', {
+				message: '로그인 ok',
+				tokenId: data.auth_key,
+			});
+			history.push('/projects');
 		} else {
 			alert(res.statusText);
 		}
 	};
 	return (
 		<>
+			<ColorCompoent></ColorCompoent>
 			<div className="token">{`token: ${token}`}</div>
 			{!isLogedIn ? (
 				<>
@@ -99,15 +114,25 @@ function LoginPage({socket}: {socket: Socket}) {
 					onClick={() => {
 						setIsLogedIn(false);
 						setToken(undefined);
-						setSelectedPjt("");
+						setSelectedPjt('');
 					}}
 				>
 					로그아웃
 				</button>
 			)}
-			{token && <ProjectList token={token} setSelectedPjt={setSelectedPjt}></ProjectList>}
+			<Route
+				path="/projects"
+				component={() =>
+					token ? (
+						<ProjectList
+							token={token}
+							setSelectedPjt={setSelectedPjt}
+						></ProjectList>
+					) : null
+				}
+			></Route>
 			<div>{`slected project: ${
-				selectedPjt === "" ? "선택된 프로젝트 없음" : selectedPjt
+				selectedPjt === '' ? '선택된 프로젝트 없음' : selectedPjt
 			}`}</div>
 			{token && selectedPjt && (
 				<TodoTemplate token={token} selectedPjt={selectedPjt}></TodoTemplate>
@@ -115,9 +140,14 @@ function LoginPage({socket}: {socket: Socket}) {
 		</>
 	);
 }
+const tokenContext = createContext('');
 function App() {
-	const socket = socketIOClient("localhost:5555");
-	return <LoginPage socket={socket}></LoginPage>;
+	const socket = socketIOClient('localhost:5555');
+	return (
+		<>
+			<Route path="/" component={() => <LoginPage socket={socket} />}></Route>
+		</>
+	);
 }
 
 export default App;
