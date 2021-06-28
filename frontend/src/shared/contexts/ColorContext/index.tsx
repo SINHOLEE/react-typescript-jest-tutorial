@@ -5,7 +5,7 @@ import React, {
 	useContext,
 	useReducer,
 	useState,
-} from 'react';
+} from "react";
 type ColorState = {
 	color: string;
 	subColor: string;
@@ -16,16 +16,16 @@ type ColorActions = {
 };
 
 type ColorActions2 =
-	| { type: 'SET_COLOR'; value: string }
-	| { type: 'SET_SUB_COLOR'; value: string }
-	| { type: 'DEFAULT' };
+	| {type: "SET_COLOR"; value: string}
+	| {type: "SET_SUB_COLOR"; value: string}
+	| {type: "DEFAULT"};
 
 type ColorDispatch = Dispatch<ColorActions2>;
 // default 선언
 // 이때 action은 임의의 값을 삽입했는데, 필요없어보인다 이걸 어떻게 처리해야할까?
 const initColor = {
-	color: 'red',
-	subColor: 'black',
+	color: "red",
+	subColor: "black",
 };
 
 const ColorStateContext = createContext<ColorState>(initColor);
@@ -33,14 +33,14 @@ const ColorDispatchContext = createContext<ColorDispatch>(() => {});
 
 function ColorReducer(state: ColorState, action: ColorActions2): ColorState {
 	switch (action.type) {
-		case 'DEFAULT':
-			return { ...state };
-		case 'SET_COLOR':
-			return { ...state, color: action.value };
-		case 'SET_SUB_COLOR':
-			return { ...state, subColor: action.value };
+		case "DEFAULT":
+			return {...state};
+		case "SET_COLOR":
+			return {...state, color: action.value};
+		case "SET_SUB_COLOR":
+			return {...state, subColor: action.value};
 		default:
-			throw new Error('Color Reducer Error');
+			throw new Error("Color Reducer Error");
 	}
 }
 
@@ -49,8 +49,8 @@ const ColorContext = createContext<{
 	actions: ColorActions;
 }>({
 	//init value
-	state: { color: 'pink', subColor: 'green' },
-	actions: { setColor: () => {}, setSubColor: () => {} },
+	state: {color: "pink", subColor: "green"},
+	actions: {setColor: () => {}, setSubColor: () => {}},
 });
 
 type Props = {
@@ -58,23 +58,21 @@ type Props = {
 };
 
 // 비즈니스 로직 삽입
-export function ColorProvider({ children }: Props) {
-	const [color, setColor] = useState('black');
-	const [subColor, setSubColor] = useState('red');
+export function ColorProvider({children}: Props) {
+	const [color, setColor] = useState("black");
+	const [subColor, setSubColor] = useState("red");
 
 	const value = {
-		state: { color, subColor },
+		state: {color, subColor},
 		actions: {
 			setColor,
 			setSubColor,
 		},
 	};
 
-	return (
-		<ColorContext.Provider value={value}>{children}</ColorContext.Provider>
-	);
+	return <ColorContext.Provider value={value}>{children}</ColorContext.Provider>;
 }
-export function ColorProvider2({ children }: Props) {
+export function ColorProvider2({children}: Props) {
 	const [state, dispatch] = useReducer(ColorReducer, initColor);
 	return (
 		<ColorStateContext.Provider value={state}>
@@ -87,26 +85,26 @@ export function ColorProvider2({ children }: Props) {
 
 function useColorState() {
 	const state = useContext(ColorStateContext);
-	if (!state) throw new Error('no Color State');
+	if (!state) throw new Error("no Color State");
 	return state;
 }
 
 function useColorAction() {
 	const dispatch = useContext(ColorDispatchContext);
-	if (!dispatch) throw new Error('no Color Dispatch');
+	if (!dispatch) throw new Error("no Color Dispatch");
 	const setColor = (value: string) => {
-		dispatch({ type: 'SET_COLOR', value });
+		dispatch({type: "SET_COLOR", value});
 	};
 	const setSubColor = (value: string) => {
-		dispatch({ type: 'SET_SUB_COLOR', value });
+		dispatch({type: "SET_SUB_COLOR", value});
 	};
-	return { setSubColor, setColor };
+	return {setSubColor, setColor};
 }
-const colors = ['#ef4348', '#bdeb34', '#5d7da8', '#975da8'];
+const colors = ["#ef4348", "#bdeb34", "#5d7da8", "#975da8"];
 export function ColorSelector() {
-	const { actions } = useContext(ColorContext);
+	const {actions} = useContext(ColorContext);
 	return (
-		<div style={{ display: 'flex' }}>
+		<div style={{display: "flex"}}>
 			{colors.map((color) => (
 				<div
 					key={color}
@@ -115,7 +113,7 @@ export function ColorSelector() {
 						width: 40,
 						height: 40,
 						margin: 10,
-						overflow: 'auto',
+						overflow: "auto",
 					}}
 					onClick={() => {
 						actions.setColor(color);
@@ -135,7 +133,7 @@ export function ColorSelector() {
 export function ColorSelector2() {
 	const actions = useColorAction();
 	return (
-		<div style={{ display: 'flex' }}>
+		<div style={{display: "flex"}}>
 			{colors.map((color) => (
 				<div
 					key={color}
@@ -144,7 +142,7 @@ export function ColorSelector2() {
 						width: 40,
 						height: 40,
 						margin: 10,
-						overflow: 'auto',
+						overflow: "auto",
 					}}
 					onClick={() => {
 						actions.setColor(color);
@@ -163,7 +161,7 @@ export function ColorSelector2() {
 }
 
 export function ColorBox() {
-	const { state } = useContext(ColorContext);
+	const {state} = useContext(ColorContext);
 	return (
 		<>
 			<div
@@ -183,7 +181,7 @@ export function ColorBox() {
 		</>
 	);
 }
-export function ColorBox2() {
+export const ColorBox2 = React.memo(() => {
 	const state = useColorState();
 	return (
 		<>
@@ -203,4 +201,4 @@ export function ColorBox2() {
 			></div>
 		</>
 	);
-}
+});
