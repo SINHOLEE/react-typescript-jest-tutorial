@@ -33,6 +33,13 @@ app.get("/todos", cors(corsCheck), loginMiddleware, (req: Request, res: Response
 	const todos = TodoService.getList(project_id);
 	res.json(todos);
 });
+app.patch("/todos/:id", cors(corsCheck), loginMiddleware, (req: Request, res: Response) => {
+	const todo_id = req.params.id as string;
+
+	const todos = TodoService.toggle(todo_id);
+	res.json(todos);
+});
+
 app.get("/projects", cors(corsCheck), loginMiddleware, (req: Request, res: Response) => {
 	const tokenId = req.headers["authorization"];
 	const user = UserService.getItemByTokenId(tokenId);

@@ -99,10 +99,18 @@ const tokenRepository = {
 	},
 };
 
-const todos: TodoType[] = [];
-
-const TodoService = {
-	add: (text: string, projectId: string) => {
+class TodosModel {
+	private todos: TodoType[];
+	constructor() {
+		this.todos = [];
+	}
+	getListAll = () => {
+		return this.todos.slice();
+	};
+	getList = (projectId: string) => {
+		return this.todos.filter((todo) => todo.projectId === projectId);
+	};
+	add = (text: string, projectId: string) => {
 		const newTodo: TodoType = {
 			id: gen_uuid(),
 			content: text,
@@ -111,15 +119,31 @@ const TodoService = {
 			projectId: projectId,
 			updatedAt: Date.now().toString(),
 		};
-		todos.push(newTodo);
+		this.todos.push(newTodo);
 		return newTodo;
-	},
-	toggle: (id: string) => {
-		todos.filter((todo) => (todo.id === id ? {...todo, done: !todo.done} : todo));
+	};
+	toggle = (id: string) => {
+		this.todos = this.todos.map((todo) =>
+			todo.id === id ? {...todo, done: !todo.done} : todo,
+		);
+		console.log(this.todos.find((todo) => todo.id === id));
 		return id;
+	};
+}
+const todoModel = new TodosModel();
+
+const TodoService = {
+	add: (text: string, projectId: string) => {
+		return todoModel.add(text, projectId);
+	},
+	/**
+	 * return 하는 값은 todo id
+	 */
+	toggle: (id: string) => {
+		return todoModel.toggle(id);
 	},
 	getList: (projectId: string) => {
-		return todos.filter((todo) => todo.projectId === projectId);
+		return todoModel.getList(projectId);
 	},
 };
 type SuccessProps<T> = {
