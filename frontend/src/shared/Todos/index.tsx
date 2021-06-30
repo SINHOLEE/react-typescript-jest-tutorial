@@ -1,5 +1,5 @@
 import {fetchAPI, useFetch} from "client/utils";
-import React, {FormEvent, useEffect, useState} from "react";
+import React, {FormEvent, useRef, useState} from "react";
 import {useProjectSelectState} from "shared/contexts/ProjectSelectContext";
 import {useTokenState} from "shared/contexts/TokenContenxt";
 
@@ -12,25 +12,48 @@ type TodoType = {
 	projectId: string;
 };
 export default function TodoTemplate() {
-	const [todos, setTodos] = useState<TodoType[]>([]);
+	const {token} = useTokenState();
+	const {projectId} = useProjectSelectState();
+
+	const {
+		data: todos,
+		error,
+		isLoading,
+		addItem: addTodo,
+		toggle: toggleTodo,
+		remove: removeTodo,
+	} = useFetch<TodoType>(async () => fetchAPI("http://10.10.10.56:5555/todos", token, projectId));
 
 	return (
 		<>
-			<TodoInput setTodos={setTodos}></TodoInput>
-			<TodoList todos={todos} setTodos={setTodos}></TodoList>
+			<TodoInput isLoading={isLoading} addTodo={addTodo}></TodoInput>
+			<TodoList
+				toggleTodo={toggleTodo}
+				todos={todos}
+				isLoading={isLoading}
+				error={error}
+				removeTodo={removeTodo}
+			></TodoList>
 		</>
 	);
 }
 
-function TodoInput({setTodos}: {setTodos: React.Dispatch<React.SetStateAction<TodoType[]>>}) {
+interface ITodoInput {
+	isLoading: boolean;
+	addTodo: (item: TodoType) => void;
+}
+
+function TodoInput({isLoading, addTodo}: ITodoInput) {
 	const {token} = useTokenState();
 	const {projectId} = useProjectSelectState();
-
 	const [input, setInput] = useState("");
+	const inputRef = useRef<HTMLInputElement>(null);
 	const handleSubmit = async (event: FormEvent) => {
+		if (isLoading) return;
+		if (!input) return;
 		event.preventDefault();
 		console.log(input);
-		const res = await fetch("http://localhost:5555/todos", {
+		const res = await fetch("http://10.10.10.56:5555/todos", {
 			method: "POST",
 			headers: {
 				"Content-type": "application/json",
@@ -44,29 +67,39 @@ function TodoInput({setTodos}: {setTodos: React.Dispatch<React.SetStateAction<To
 		const todo = await res.json();
 		if (res.ok) {
 			setInput("");
-			setTodos((todos) => [...todos, todo]);
+			addTodo(todo);
+			inputRef.current?.focus();
 		} else {
 			alert(res.statusText);
 		}
 	};
 	return (
 		<div>
-			<input type="text" value={input} onChange={(e) => setInput(e.target.value)} />
+			<input
+				ref={inputRef}
+				type="text"
+				value={input}
+				onChange={(e) => setInput(e.target.value)}
+				onKeyPress={(e) => (e.key === "Enter" ? handleSubmit(e) : null)}
+			/>
 			<button onClick={handleSubmit}>생성</button>
 		</div>
 	);
 }
 function Todo({
 	todo,
-	setTodos,
+	toggleTodo,
+	removeTodo,
 }: {
 	todo: TodoType;
-	setTodos: React.Dispatch<React.SetStateAction<TodoType[]>>;
+	toggleTodo: (toggleMapFn: (item: TodoType) => TodoType) => void;
+	removeTodo: (removeFilterFn: (item: TodoType) => boolean) => void;
 }) {
 	const {token} = useTokenState();
+
 	const handleToggle = async (event: FormEvent) => {
 		event.preventDefault();
-		const res = await fetch(`http://localhost:5555/todos/${todo.id}`, {
+		const res = await fetch(`http://10.10.10.56:5555/todos/${todo.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-type": "application/json",
@@ -76,63 +109,77 @@ function Todo({
 		});
 		const todoId = await res.json();
 		if (res.ok) {
-			setTodos((todos) => todos.map((t) => (t.id === todoId ? {...t, done: !t.done} : t)));
+			toggleTodo((currentTodo) =>
+				currentTodo.id === todoId ? {...currentTodo, done: !currentTodo.done} : currentTodo,
+			);
+		} else {
+			alert(res.statusText);
+		}
+	};
+	const handleDelete = async (event: FormEvent) => {
+		event.preventDefault();
+		const res = await fetch(`http://10.10.10.56:5555/todos/${todo.id}`, {
+			method: "DELETE",
+			headers: {
+				"Content-type": "application/json",
+				project_id: todo.projectId,
+				authorization: token,
+			},
+		});
+		await res.json();
+		if (res.ok) {
+			removeTodo((currentTodo) => currentTodo.id !== todo.id);
 		} else {
 			alert(res.statusText);
 		}
 	};
 	return (
-		<li>
+		<li style={{display: "flex"}}>
 			<div className="left">
 				<div>todoId: {todo.id}</div>
 				<div>내용: {todo.content}</div>
 				<div>projectId: {todo.projectId}</div>
 				<div>최신수정날짜: {todo.updatedAt}</div>
+				<div
+					className="right"
+					style={{color: todo.done ? "blue" : "red", cursor: "pointer"}}
+					onClick={handleToggle}
+				>
+					{todo.done ? "수행완료" : "미수행"}
+				</div>
 			</div>
-			<div
-				className="right"
-				style={{color: todo.done ? "blue" : "red", cursor: "pointer"}}
-				onClick={handleToggle}
-			>
-				{todo.done ? "수행완료" : "미수행"}
-			</div>
+			<button style={{color: "red"}} onClick={handleDelete}>
+				삭제
+			</button>
 		</li>
 	);
 }
 
-function TodoList({
-	todos,
-	setTodos,
-}: {
+interface ITodoList {
 	todos: TodoType[];
-	setTodos: React.Dispatch<React.SetStateAction<TodoType[]>>;
-}) {
-	const {projectId} = useProjectSelectState();
-	const {token} = useTokenState();
-	useEffect(() => {
-		const asyncFetch = async () => {
-			const res = await fetch("http://localhost:5555/todos", {
-				headers: {
-					"Content-type": "application/json",
-					project_id: projectId,
-					authorization: token,
-				},
-			});
-			console.log(res);
-			if (res.ok) {
-				const data = await res.json();
-				setTodos(data);
-			}
-		};
-		if (token && projectId) {
-			asyncFetch();
-		}
-	}, [token, projectId, setTodos]);
+	toggleTodo: (toggleMapFn: (item: TodoType) => TodoType) => void;
+	removeTodo: (removeFilterFn: (item: TodoType) => boolean) => void;
+	isLoading: boolean;
+	error: boolean;
+}
+function TodoList(props: ITodoList) {
+	const {error, isLoading, todos, toggleTodo, removeTodo} = props;
 	return (
-		<ul>
-			{todos.map((todo) => (
-				<Todo key={todo.id} todo={todo} setTodos={setTodos}></Todo>
-			))}
-		</ul>
+		<>
+			{error && <div>error</div>}
+			{isLoading && <div>todos loading...</div>}
+			{todos && (
+				<ul>
+					{todos.map((todo) => (
+						<Todo
+							removeTodo={removeTodo}
+							key={todo.id}
+							todo={todo}
+							toggleTodo={toggleTodo}
+						></Todo>
+					))}
+				</ul>
+			)}
+		</>
 	);
 }

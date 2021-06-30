@@ -8,24 +8,24 @@ import {
 	ColorSelector2,
 } from "shared/contexts/ColorContext";
 
-const ColorComponent = () => {
-	return (
-		<div>
-			<div style={{display: "flex", marginBottom: 10}}>
-				<h3>A 그룹</h3>
-				<ColorProvider>
-					<div>
-						<ColorSelector></ColorSelector>
-						<br></br>
-						<ColorBox></ColorBox>
-						<ColorBox></ColorBox>
-					</div>
-				</ColorProvider>
-			</div>
-			<ColorBox></ColorBox>
-		</div>
-	);
-};
+// const ColorComponent = () => {
+// 	return (
+// 		<div>
+// 			<div style={{display: "flex", marginBottom: 10}}>
+// 				<h3>A 그룹</h3>
+// 				<ColorProvider>
+// 					<div>
+// 						<ColorSelector></ColorSelector>
+// 						<br></br>
+// 						<ColorBox></ColorBox>
+// 						<ColorBox></ColorBox>
+// 					</div>
+// 				</ColorProvider>
+// 			</div>
+// 			<ColorBox></ColorBox>
+// 		</div>
+// 	);
+// };
 const ColorComponent2 = React.memo(() => {
 	return (
 		<div style={{display: "flex", justifyContent: "space-around"}}>

@@ -1,18 +1,23 @@
-import React, {MouseEvent, useEffect, useRef, useState} from "react";
-import socketIOClient, {Socket} from "socket.io-client";
+import {useEffect, useState} from "react";
 import TodoTemplate from "shared/Todos";
 import "./App.css";
-import {Route, useHistory} from "react-router";
+import {Route} from "react-router";
 import ColorCompoent from "shared/ColorComponent";
-import {Link} from "react-router-dom";
-import {TokenProvider, useTokenDispatch, useTokenState} from "./contexts/TokenContenxt";
+import {TokenProvider, useTokenState} from "./contexts/TokenContenxt";
 import {
 	ProjectSelectProvider,
 	useProjectSelectDispatch,
 	useProjectSelectState,
 } from "./contexts/ProjectSelectContext";
 import {fetchAPI, useFetch} from "client/utils";
-
+import SocketProvider, {
+	SocketMessage,
+	useSocket,
+	useSocketDispatch,
+	useSocketMessages,
+} from "shared/contexts/SocketContext";
+import LoginPage from "shared/LoginPage";
+import Menu from "shared/MenuComponent";
 type ProjectType = {
 	id: string;
 	related_users: string[];
@@ -27,9 +32,8 @@ function ProjectList() {
 		data: projects,
 		error,
 		isLoading,
-	} = useFetch<ProjectType[] | undefined>(async () =>
-		fetchAPI("http://localhost:5555/projects", token),
-	);
+	} = useFetch<ProjectType>(async () => fetchAPI("http://10.10.10.56:5555/projects", token));
+
 	return (
 		<>
 			{error && <h1>에러발생!!</h1>}
@@ -54,109 +58,6 @@ function ProjectList() {
 	);
 }
 
-function LoginPage({socket}: {socket: Socket}) {
-	const {resetProjectId} = useProjectSelectDispatch();
-	const {isLogedIn, token} = useTokenState();
-	const {login, logout} = useTokenDispatch();
-	const idRef = useRef<HTMLInputElement | null>(null);
-	const pwRef = useRef<HTMLInputElement | null>(null);
-	const history = useHistory();
-	const handleSubmit = async (event: MouseEvent) => {
-		event.preventDefault();
-		const res = await fetch("http://localhost:5555/login/", {
-			method: "POST",
-			headers: {
-				"Content-type": "application/json",
-			},
-			body: JSON.stringify({
-				username: idRef.current?.value,
-				password: pwRef.current?.value,
-			}),
-		});
-		if (res.ok) {
-			console.log(res.body);
-			const data = await res.json();
-			login(data.auth_key);
-			alert("로그인됨");
-			socket.emit("send message", {
-				message: "로그인 ok",
-				tokenId: data.auth_key,
-			});
-			history.push("/projects");
-		} else {
-			alert(res.statusText);
-		}
-	};
-	return (
-		<>
-			<div className="token">{`token: ${token}`}</div>
-			{!isLogedIn ? (
-				<>
-					<div>로그인 폼</div>
-					<div className="form">
-						<input type="text" ref={idRef} className="id" />
-						<input type="text" ref={pwRef} className="password" />
-						<button type="submit" onClick={handleSubmit}>
-							로그인
-						</button>
-					</div>
-				</>
-			) : (
-				<button
-					onClick={() => {
-						logout();
-						resetProjectId();
-					}}
-				>
-					로그아웃
-				</button>
-			)}
-		</>
-	);
-}
-const liStyle = {
-	marginRight: 20,
-};
-
-function Menu() {
-	const {isLogedIn} = useTokenState();
-	const {resetProjectId} = useProjectSelectDispatch();
-
-	const {logout} = useTokenDispatch();
-	return (
-		<ul style={{display: "flex", justifyContent: "flex-start", marginRight: 30}}>
-			{isLogedIn ? (
-				<li
-					style={{...liStyle}}
-					onClick={() => {
-						logout();
-						resetProjectId();
-					}}
-				>
-					<Link to="/">logout</Link>
-				</li>
-			) : (
-				<li style={{...liStyle}}>
-					<Link to="/">login</Link>
-				</li>
-			)}
-			<li style={{...liStyle}}>
-				<Link to="/color">color</Link>
-			</li>
-			{isLogedIn && (
-				<>
-					<li style={{...liStyle}}>
-						<Link to="/projects">pojects</Link>
-					</li>
-					<li style={{...liStyle}}>
-						<Link to="/todos">todos</Link>
-					</li>
-				</>
-			)}
-		</ul>
-	);
-}
-
 function State() {
 	const {projectId} = useProjectSelectState();
 	const {token, isLogedIn} = useTokenState();
@@ -171,28 +72,56 @@ function State() {
 	);
 }
 
+function Alret() {
+	const {socket} = useSocket();
+	const messages = useSocketMessages();
+	const {addMessage} = useSocketDispatch();
+	useEffect(() => {
+		socket.on("ADD_SOCKET_MESSAGE", (message: SocketMessage) => {
+			addMessage(message);
+		});
+	}, []);
+
+	return (
+		<div style={{display: "flex", padding: 10}}>
+			<div style={{border: "1px solid black", marginRight: 10}}>
+				<State></State>
+			</div>
+			<aside style={{border: "1px solid black", marginRight: 10}}>
+				오른편에 알람 보여주기
+				<ul>
+					{messages.map((message) => (
+						<li key={message.id}>
+							{`type: ${message.type} created_at: ${message.created_at} userid: ${message.user_id} `}
+							{message.checking_users.map((item, index) => (
+								<div key={index}>
+									<span>{item.checked}</span>
+									<span>{item.user_id}</span>
+								</div>
+							))}
+						</li>
+					))}
+				</ul>
+			</aside>
+		</div>
+	);
+}
+
 function App() {
-	const socket = socketIOClient("localhost:5555");
-	console.log(socket);
 	return (
 		<>
-			<TokenProvider>
-				<ProjectSelectProvider>
-					<Menu></Menu>
-					<div style={{display: "flex", padding: 10}}>
-						<div style={{border: "1px solid black", marginRight: 10}}>
-							<State></State>
-						</div>
-						<aside style={{border: "1px solid black", marginRight: 10}}>
-							오른편에 알람 보여주기
-						</aside>
-					</div>
-					<Route path="/" exact component={() => <LoginPage socket={socket} />}></Route>
-					<Route path="/color" component={ColorCompoent}></Route>
-					<Route path="/projects" component={ProjectList}></Route>
-					<Route path="/todos" component={TodoTemplate}></Route>
-				</ProjectSelectProvider>
-			</TokenProvider>
+			<SocketProvider>
+				<TokenProvider>
+					<ProjectSelectProvider>
+						<Menu></Menu>
+						<Alret></Alret>
+						<Route path="/" exact component={() => <LoginPage />}></Route>
+						<Route path="/color" component={ColorCompoent}></Route>
+						<Route path="/projects" component={ProjectList}></Route>
+						<Route path="/todos" component={TodoTemplate}></Route>
+					</ProjectSelectProvider>
+				</TokenProvider>
+			</SocketProvider>
 		</>
 	);
 }
