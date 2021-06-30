@@ -1,11 +1,16 @@
 import {text} from "body-parser";
 
-const gen_uuid = (): string => {
+export const gen_uuid = (): string => {
 	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
 		var r = (Math.random() * 16) | 0,
 			v = c == "x" ? r : (r & 0x3) | 0x8;
 		return v.toString(16);
 	});
+};
+type CRUDLog = {
+	id: string;
+	room_id: string;
+	created_at: string;
 };
 type UserType = {
 	id: string;
@@ -100,15 +105,28 @@ const tokenRepository = {
 };
 
 class TodosModel {
-	private todos: TodoType[];
+	private _todos: TodoType[];
 	constructor() {
 		this.todos = [];
 	}
+
+	private set todos(_todos: TodoType[]) {
+		this._todos = _todos;
+	}
+	private get todos() {
+		return this._todos;
+	}
+
 	getListAll = () => {
 		return this.todos.slice();
 	};
 	getList = (projectId: string) => {
 		return this.todos.filter((todo) => todo.projectId === projectId);
+	};
+	delete = async (todoId: string): Promise<TodoType> => {
+		const todo = this.todos.find((todo) => todo.id === todoId);
+		this.todos = await Promise.resolve(this.todos.filter((todo) => todo.id !== todoId));
+		return todo;
 	};
 	add = (text: string, projectId: string) => {
 		const newTodo: TodoType = {
@@ -126,7 +144,6 @@ class TodosModel {
 		this.todos = this.todos.map((todo) =>
 			todo.id === id ? {...todo, done: !todo.done} : todo,
 		);
-		console.log(this.todos.find((todo) => todo.id === id));
 		return id;
 	};
 }
@@ -140,10 +157,14 @@ const TodoService = {
 	 * return 하는 값은 todo id
 	 */
 	toggle: (id: string) => {
+		console.log("toggle");
 		return todoModel.toggle(id);
 	},
 	getList: (projectId: string) => {
 		return todoModel.getList(projectId);
+	},
+	delete: async (todoId: string) => {
+		return await todoModel.delete(todoId);
 	},
 };
 type SuccessProps<T> = {
@@ -177,6 +198,10 @@ const ProjectService = {
 	getListByUser: (user: UserType): ProjectType[] => {
 		const plist = projects.filter((p) => p.related_users.some((uid) => uid === user.id));
 		return plist;
+	},
+	getRelatedUsersByProjectId: (project_id: string): string[] => {
+		const project = projects.find((project) => project.id === project_id);
+		return project.related_users;
 	},
 };
 
