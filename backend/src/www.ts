@@ -2,7 +2,8 @@ import app from "./app";
 import {createServer} from "http";
 import {Server, Socket} from "socket.io";
 import models from "./models";
-const {UserService, ProjectService, TokenService, TodoService} = models;
+import {io} from "socket.io-client";
+const {UserService, ProjectService, TokenService, TodoService, SocketMessageService} = models;
 
 const port: number = Number(process.env.PORT) || 5555;
 
@@ -25,25 +26,33 @@ app.set("io", socketIo);
 socketIo.on("connection", (socket: Socket) => {
 	console.log("================");
 	console.log("connected");
-	console.log("socket:", socket.rooms);
-	// console.log("socketIo: ", socketIo.sockets);
-	socket.emit("initClient", {hi: `hi i am ${socket.id}`});
-	socket.emit("initClient", {hi: `hi222 i am ${socket.id}`});
-	socket.on("initClient", (value: any) => {
-		console.log("initClient: ", value);
-	});
-	socket.on("send message", (item: any) => {
-		console.log(item);
-		console.log(socket.id);
-		// socket.emit('respnse message',{message:`id: ${socket.id}`, })
+	socket.on("INIT_MESSAGES", async (value: {auth_key: string}) => {
+		const messages = await SocketMessageService.getList();
+		const user = UserService.getItemByTokenId(value.auth_key);
+
+		const filteredMessage = messages
+			.filter((message) => user.project_ids.includes(message.project_id))
+			.filter((message) => !message.checking_users.some((u) => u.user_id === user.id));
+
+		socket.emit("READ_MESSAGE_RESULT", filteredMessage);
 	});
 
+	socket.on("READ_MESSAGES", async (value: {auth_key: string}) => {
+		const user = UserService.getItemByTokenId(value.auth_key);
+
+		await SocketMessageService.toggleCheckingUserState(user.id);
+		const messages = await SocketMessageService.getList();
+		const filteredMessage = messages.filter((message) =>
+			user.project_ids.includes(message.project_id),
+		);
+
+		user.project_ids.forEach((p_id) =>
+			socketIo.to(p_id).emit("READ_MESSAGE_RESULT", filteredMessage),
+		);
+	});
 	socket.on("join_rooms", (value: {auth_key: string}) => {
-		console.log({value});
-		console.log("rooms: ", socket.rooms);
 		const user = UserService.getItemByTokenId(value.auth_key);
 		user.project_ids.forEach((pid) => socket.join(pid));
-		console.log("rooms: ", socket.rooms);
 	});
 });
 

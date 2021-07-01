@@ -28,31 +28,81 @@ type TodoType = {
 	projectId: string;
 };
 
+export type SocketMessage = {
+	type: "POST" | "DELETE" | "PATCH";
+	resourse_id: string;
+	resourse_type: "todo";
+	id: string;
+	user_id: string;
+	project_id: string;
+	created_at: string;
+	checking_users: {user_id: string}[];
+};
+
+let socketMessages: SocketMessage[] = [];
+let readUsers = new Set();
+const SocketMessageService = {
+	add: async (newMessage: SocketMessage) => {
+		return await Promise.resolve(socketMessages.push(newMessage));
+	},
+	getList: async () => {
+		return await Promise.resolve(socketMessages.slice());
+	},
+	toggleCheckingUserState: async (user_id: string) => {
+		const sms = Promise.resolve(
+			socketMessages.map((sm) =>
+				sm.user_id === user_id
+					? sm
+					: {
+							...sm,
+							checking_users: sm.checking_users.some(
+								(item) => item.user_id === user_id,
+							)
+								? sm.checking_users
+								: sm.checking_users.concat([{user_id}]),
+					  },
+			),
+		);
+		socketMessages = await sms;
+	},
+};
+
 const users: UserType[] = [
 	{
 		id: "user_1",
-		username: "dltlsgh5@naver.com",
-		password: "TLSgh!@3",
+		username: "1",
+		password: "1",
 		project_ids: ["project_1", "project_2"],
 	},
 	{
 		id: "user_2",
-		username: "dltlsgh5@gmail.com",
-		password: "TLSgh!@3",
+		username: "2",
+		password: "2",
 		project_ids: ["project_2"],
 	},
 	{
 		id: "user_3",
-		username: "dltlsgh5@kinx.net",
-		password: "TLSgh!@3",
+		username: "3",
+		password: "3",
 		project_ids: ["project_1"],
 	},
 	{
 		id: "user_4",
-		username: "1",
-		password: "1",
-		project_ids: ["project_1"],
+		username: "4",
+		password: "4",
+		project_ids: ["project_1", "project_3"],
 	},
+	{
+		id: "user_5",
+		username: "5",
+		password: "5",
+		project_ids: ["project_3"],
+	},
+];
+const projects: ProjectType[] = [
+	{id: "project_1", related_users: ["user_1", "user_3", "user_4"]},
+	{id: "project_2", related_users: ["user_1", "user_2"]},
+	{id: "project_3", related_users: ["user_5", "user_4"]},
 ];
 type TokenType = {
 	id: string;
@@ -70,11 +120,6 @@ type ProjectType = {
 	id: string;
 	related_users: string[];
 };
-
-const projects: ProjectType[] = [
-	{id: "project_1", related_users: ["user_1", "user_3", "user_4"]},
-	{id: "project_2", related_users: ["user_1", "user_2"]},
-];
 
 // var myLogger = function (req, res, next) {
 // 	// console.log({req});
@@ -251,4 +296,5 @@ export default {
 	UserService,
 	TokenService,
 	TodoService,
+	SocketMessageService,
 };

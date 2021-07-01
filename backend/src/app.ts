@@ -1,5 +1,10 @@
 import {NextFunction, Request, Response} from "express";
-import app, {corsCheck, loginMiddleware, todoAlertMiddleware} from "./middlewares";
+import app, {
+	corsCheck,
+	loginMiddleware,
+	todoAlertMiddleware,
+	todoAlertVailidatorMiddleware,
+} from "./middlewares";
 import cors from "cors";
 import {Server, Socket} from "socket.io";
 import models from "./models";
@@ -32,18 +37,14 @@ app.post(
 		const project_id = req.headers["project_id"] as string;
 		const todo = TodoService.add(content, project_id);
 		if (todo) {
-			const io = req.app.get("io") as Server;
-			console.log("todo post");
-			console.log(project_id);
-
-			io.to(project_id).emit("roomEvent", {room: project_id, value: 123});
-
+			res.locals.todoId = todo.id;
 			res.json(todo);
 			next();
 		} else {
 			res.status(400).send();
 		}
 	},
+	todoAlertVailidatorMiddleware,
 	todoAlertMiddleware,
 );
 
@@ -51,37 +52,43 @@ app.get(
 	"/todos",
 	cors(corsCheck),
 	loginMiddleware,
-	todoAlertMiddleware,
 	(req: Request, res: Response) => {
 		const project_id = req.headers["project_id"] as string;
 
 		const todos = TodoService.getList(project_id);
 		res.json(todos);
 	},
+	todoAlertMiddleware,
 );
 app.patch(
 	"/todos/:id",
 	cors(corsCheck),
 	loginMiddleware,
-	todoAlertMiddleware,
-	(req: Request, res: Response) => {
+	(req: Request, res: Response, next: NextFunction) => {
 		const todo_id = req.params.id as string;
-
+		res.locals.todoId = todo_id;
 		const todos = TodoService.toggle(todo_id);
 		res.json(todos);
+		next();
 	},
+	todoAlertVailidatorMiddleware,
+	todoAlertMiddleware,
 );
 app.delete(
 	"/todos/:id",
 	cors(corsCheck),
 	loginMiddleware,
-	todoAlertMiddleware,
-	async (req: Request, res: Response) => {
+
+	async (req: Request, res: Response, next: NextFunction) => {
 		const todo_id = req.params.id as string;
 
+		res.locals.todoId = todo_id;
 		const todo = await TodoService.delete(todo_id);
+		next();
 		res.json(todo);
 	},
+	todoAlertVailidatorMiddleware,
+	todoAlertMiddleware,
 );
 
 app.get("/projects", cors(corsCheck), loginMiddleware, (req: Request, res: Response) => {
